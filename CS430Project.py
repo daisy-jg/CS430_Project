@@ -1,13 +1,15 @@
 import sys
 import os
 
-def read_input(filename):
+def read_input_file(filename):
     try:
         with open(filename, 'r') as f:
+            # Number of jobs
             n = int(f.readline().strip())
             if n > 1000:
-                raise ValueError("Number of jobs exceeds maximum limit of 1000")
-                
+                raise ValueError("The maximum limit of jobs is 1000")
+            
+            # Each job's release time and deadline
             jobs = []
             for job_id in range(1, n+1):
                 r, d = map(int, f.readline().strip().split())
@@ -15,53 +17,63 @@ def read_input(filename):
                     raise ValueError(f"Job {job_id} has deadline before release time")
                 jobs.append((r, d, job_id))
             
+            # Number of job types
             K = int(f.readline().strip())
             if K > 100:
-                raise ValueError("Number of machine types exceeds maximum limit of 100")
-                
+                raise ValueError("The maximum limit of machine types is 100")
+            
+            
+            # Cost and Capacity
             machines = []
             for _ in range(K):
                 c, B = map(int, f.readline().strip().split())
                 if c < 1 or B < 1:
-                    raise ValueError("Machine cost and capacity must be ≥ 1")
+                    raise ValueError("The machine cost and capacity must be greater than or equal to 1")
                 machines.append((B, c))
         
         return jobs, machines
+    # Error message 
     except FileNotFoundError:
         return None, None
     except Exception as e:
         print(f"Error reading {filename}: {str(e)}")
         return None, None
 
-def write_output(filename, batches):
+def write_output_file(filename, batches):
     with open(filename, 'w') as f:
-        f.write(f"{len(batches)}\n")
+        # Total number of batches
+        f.write(f"{len(batches)}\n") 
+        # Batch details including machine type and time
         for batch in batches:
             time, machine_type, job_ids = batch
             job_str = ' '.join(map(str, job_ids))
             f.write(f"{time} {machine_type} {job_str}\n")
 
-def get_optimal_schedule(jobs, machines):
+# Using dynamic programming to optimize scheduling process
+def optimal_schedule(jobs, machines):
     n = len(jobs)
     K = len(machines)
     
-    machines_sorted = sorted(machines, key=lambda x: (x[0], x[1]))
-    B = [m[0] for m in machines_sorted]
-    c = [m[1] for m in machines_sorted]
+    # Sort machines by capacity, then sort by cost
+    sort_machines = sorted(machines, key=lambda x: (x[0], x[1]))
+    B = [m[0] for m in sort_machines]
+    c = [m[1] for m in sort_machines]
     
-    jobs_sorted = sorted(jobs, key=lambda x: (x[0], x[1]))
+    # Sort jobs by release time, then sort by deadline from earliest to latest
+    sort_jobs = sorted(jobs, key=lambda x: (x[0], x[1]))
     
-    A = [float('inf')] * (n + 1)
-    A[0] = 0
+    A = [float('inf')] * (n + 1) # Stores the minimum cost for scheduling the first q jobs
+    A[0] = 0 # Base case: No jobs indicate zero cost
     prev = [-1] * (n + 1)
     batch_info = [None] * (n + 1)
     
     for q in range(1, n + 1):
         for l in range(1, min(q, B[-1]) + 1):
-            batch_jobs = jobs_sorted[q-l:q]
-            max_r = max(job[0] for job in batch_jobs)
-            min_d = min(job[1] for job in batch_jobs)
+            batch_jobs = sort_jobs[q-l:q] # Select the last l jobs
+            max_r = max(job[0] for job in batch_jobs) # Find lastest release time 
+            min_d = min(job[1] for job in batch_jobs) # Find earliest deadline
             
+            # Checks to see if there jobs with the same times
             if max_r > min_d:
                 continue
             
@@ -74,10 +86,12 @@ def get_optimal_schedule(jobs, machines):
                 else:
                     batch_time = min(job[1], max_r + 1)  
             
+            # For each machine type
             for t in range(K):
-                if l > B[t]:
+                if l > B[t]: 
                     continue
                 
+                # Check if this schedule is optimal and minimizes total cost
                 if A[q - l] + c[t] < A[q]:
                     A[q] = A[q - l] + c[t]
                     prev[q] = q - l
@@ -87,24 +101,25 @@ def get_optimal_schedule(jobs, machines):
     current = n
     while current > 0:
         time, t, l = batch_info[current]
-        job_ids = [jobs_sorted[i][2] for i in range(current - l, current)]
+        job_ids = [sort_jobs[i][2] for i in range(current - l, current)]
         batches.append((time, t, sorted(job_ids)))
         current = prev[current]
     
     batches.sort(key=lambda x: x[0])
     return batches
 
+# Using instance files to produce solution files
 def process_files():
     for i in range(1, 100):
         input_file = f"instance{i:02d}.txt"
         output_file = f"solution{i:02d}.txt"
         
-        jobs, machines = read_input(input_file)
+        jobs, machines = read_input_file(input_file)
         if jobs is None: 
             continue
             
-        batches = get_optimal_schedule(jobs, machines)
-        write_output(output_file, batches)
+        batches = optimal_schedule(jobs, machines)
+        write_output_file(output_file, batches)
         print(f"Processed {input_file} → {output_file}")
 
 if __name__ == "__main__":
@@ -113,10 +128,10 @@ if __name__ == "__main__":
         if input_file.startswith("instance") and input_file.endswith(".txt"):
             instance_num = input_file[8:-4]
             output_file = f"solution{instance_num}.txt"
-            jobs, machines = read_input(input_file)
+            jobs, machines = read_input_file(input_file)
             if jobs is not None:
-                batches = get_optimal_schedule(jobs, machines)
-                write_output(output_file, batches)
+                batches = optimal_schedule(jobs, machines)
+                write_output_file(output_file, batches)
                 print(f"Processed {input_file} → {output_file}")
     else:
         process_files()
