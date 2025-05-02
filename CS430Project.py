@@ -32,9 +32,10 @@ def read_input_file(filename):
                 machines.append((B, c))
         
         return jobs, machines
-    # Error message 
+    # Error handling for the missing file: 
     except FileNotFoundError:
         return None, None
+    # General Error Handling
     except Exception as e:
         print(f"Error reading {filename}: {str(e)}")
         return None, None
@@ -43,7 +44,7 @@ def write_output_file(filename, batches):
     with open(filename, 'w') as f:
         # Total number of batches
         f.write(f"{len(batches)}\n") 
-        # Batch details including machine type and time
+        # Batch details including machine type, list of job ids and time
         for batch in batches:
             time, machine_type, job_ids = batch
             job_str = ' '.join(map(str, job_ids))
@@ -67,6 +68,7 @@ def optimal_schedule(jobs, machines):
     prev = [-1] * (n + 1)
     batch_info = [None] * (n + 1)
     
+    #Consider all batch sizes 1 to min
     for q in range(1, n + 1):
         for l in range(1, min(q, B[-1]) + 1):
             batch_jobs = sort_jobs[q-l:q] # Select the last l jobs
@@ -78,7 +80,7 @@ def optimal_schedule(jobs, machines):
                 continue
             
             batch_time = max_r  
-            
+            # Special handling for batches of size one
             if l == 1:
                 job = batch_jobs[0]
                 if job[1] == job[0]:  
@@ -96,7 +98,7 @@ def optimal_schedule(jobs, machines):
                     A[q] = A[q - l] + c[t]
                     prev[q] = q - l
                     batch_info[q] = (batch_time, t, l)
-    
+    #Reconstruct batch list 
     batches = []
     current = n
     while current > 0:
@@ -122,6 +124,7 @@ def process_files():
         write_output_file(output_file, batches)
         print(f"Processed {input_file} → {output_file}")
 
+#If script has a specific input filename, process only that file
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         input_file = sys.argv[1]
@@ -133,5 +136,6 @@ if __name__ == "__main__":
                 batches = optimal_schedule(jobs, machines)
                 write_output_file(output_file, batches)
                 print(f"Processed {input_file} → {output_file}")
+    # otherwise, process all default files
     else:
         process_files()
